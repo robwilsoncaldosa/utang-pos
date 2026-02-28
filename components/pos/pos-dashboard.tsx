@@ -90,21 +90,18 @@ function PosDashboardInner() {
       />
 
       <div className="flex flex-1 min-h-0">
-        <div className="hidden md:block">
-          <CategoryList
-            categories={categories}
-            selectedId={categoryId}
-            onSelect={setCategoryId}
-            className="shrink-0 border-r border-border bg-card md:w-48 lg:w-52 border-b md:border-b-0 flex flex-row md:flex-col flex-wrap md:flex-nowrap"
-          />
-        </div>
-
         <main
           className={cn(
             "flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden",
             itemCount > 0 && "pb-44 md:pb-0"
           )}
         >
+          <CategoryList
+            categories={categories}
+            selectedId={categoryId}
+            onSelect={setCategoryId}
+            className="px-4 pt-4 md:px-6 md:pt-6"
+          />
           <ProductGrid
             categoryId={categoryId}
             searchQuery={searchQuery}

@@ -3,6 +3,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Download, Share2 } from "lucide-react";
@@ -33,6 +34,7 @@ export function TransactionCompletedModal({
         showClose={false}
         className="max-w-md max-h-[90vh] overflow-auto p-0 gap-0"
       >
+        <DialogTitle className="sr-only">Transaction Completed</DialogTitle>
         <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-t-lg p-6 text-center">
           <CheckCircle2 className="size-16 text-emerald-600 mx-auto mb-2" />
           <h2 className="text-xl font-bold text-foreground">
