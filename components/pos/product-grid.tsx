@@ -3,51 +3,59 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { ProductCard, type ProductCardProduct } from "./product-card";
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from "@/lib/constants";
 import { useCartContext } from "./cart-provider";
 import { cn } from "@/lib/utils";
+import type { Tables } from "@/database.types";
+
+type CategoryRow = Tables<"categories">;
+type ProductRow = Tables<"products">;
 
 type ProductGridProps = {
   categoryId: string;
   searchQuery: string;
+  products: ProductRow[];
+  categories: CategoryRow[];
   className?: string;
 };
-
-function getCategoryName(id: string): string {
-  const cat = MOCK_CATEGORIES.find((c) => c.id === id);
-  return cat?.name ?? "Uncategorized";
-}
 
 export function ProductGrid({
   categoryId,
   searchQuery,
+  products,
+  categories,
   className,
 }: ProductGridProps) {
   const { addItem } = useCartContext();
 
-  const products = useMemo(() => {
-    let list = [...MOCK_PRODUCTS];
+  const categoryNameById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.name])),
+    [categories]
+  );
+
+  const filteredProducts = useMemo(() => {
+    let list = [...products];
     if (categoryId !== "all") {
-      list = list.filter((p) => p.categoryId === categoryId);
+      list = list.filter((product) => product.category_id === categoryId);
     }
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q)
+        (product) =>
+          product.name.toLowerCase().includes(q) ||
+          product.id.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [categoryId, searchQuery]);
+  }, [categoryId, products, searchQuery]);
 
-  const productCards: ProductCardProduct[] = products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    price: p.price,
-    stock: p.stock,
-    categoryName: getCategoryName(p.categoryId),
-    imageUrl: p.imageUrl,
+  const productCards: ProductCardProduct[] = filteredProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    stock: product.stock_quantity,
+    categoryName:
+      categoryNameById.get(product.category_id ?? "") ?? "Uncategorized",
+    imageUrl: product.image_url,
   }));
 
   return (

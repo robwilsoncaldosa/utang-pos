@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   AuthCard,
@@ -16,41 +15,38 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Mail } from "lucide-react";
+import {
+  forgotPasswordAction,
+  type ForgotPasswordActionState,
+} from "@/lib/supabase/actions";
+
+function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className={authPrimaryButtonClass} disabled={pending}>
+      {pending ? pendingLabel : idleLabel}
+    </Button>
+  );
+}
 
 export function ForgotPasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
-      setSuccess(true);
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+  const [formState, formAction] = useFormState<ForgotPasswordActionState, FormData>(
+    forgotPasswordAction,
+    {
+      error: null,
+      success: false,
     }
-  };
+  );
 
   return (
     <div className={cn("flex flex-1 flex-col", className)} {...props}>
       <AuthCard>
-        {success ? (
+        {formState.success ? (
           <>
             <AuthCardHeader
               title="Check Your Email"
@@ -75,10 +71,7 @@ export function ForgotPasswordForm({
               description="Enter your email and we'll send you a reset link"
             />
             <AuthCardContent>
-              <form
-                onSubmit={handleForgotPassword}
-                className="flex flex-col gap-6"
-              >
+              <form action={formAction} className="flex flex-col gap-6">
                 <div className="grid gap-2">
                   <Label htmlFor="email" className={authLabelClass}>
                     Email address
@@ -89,27 +82,20 @@ export function ForgotPasswordForm({
                     </div>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="admin@utang.ph"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
                       className={authInputClass}
                     />
                   </div>
                 </div>
-                {error && (
+                {formState.error && (
                   <p className="text-xs font-medium text-destructive">
-                    {error}
+                    {formState.error}
                   </p>
                 )}
-                <Button
-                  type="submit"
-                  className={authPrimaryButtonClass}
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Sending..." : "Send reset email"}
-                </Button>
+                <SubmitButton idleLabel="Send reset email" pendingLabel="Sending..." />
                 <p className="text-center text-xs text-muted-foreground">
                   Already have an account?{" "}
                   <Link href="/auth/login" className={authLinkClass}>

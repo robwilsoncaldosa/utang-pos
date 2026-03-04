@@ -28,27 +28,6 @@ export default async function Page() {
 }
 `.trim();
 
-const client = `'use client'
-
-import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
-
-export default function Page() {
-  const [notes, setNotes] = useState<any[] | null>(null)
-  const supabase = createClient()
-
-  useEffect(() => {
-    const getData = async () => {
-      const { data } = await supabase.from('notes').select()
-      setNotes(data)
-    }
-    getData()
-  }, [])
-
-  return <pre>{JSON.stringify(notes, null, 2)}</pre>
-}
-`.trim();
-
 export function FetchDataSteps() {
   return (
     <ol className="flex flex-col gap-6">
@@ -132,8 +111,6 @@ export function FetchDataSteps() {
           and add the following.
         </p>
         <CodeBlock code={server} />
-        <p>Alternatively, you can use a Client Component.</p>
-        <CodeBlock code={client} />
       </TutorialStep>
 
       <TutorialStep title="Explore the Supabase UI Library">

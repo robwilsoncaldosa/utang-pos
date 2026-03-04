@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   AuthCard,
@@ -16,49 +15,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Lock, Mail } from "lucide-react";
+import { signUpAction, type SignUpActionState } from "@/lib/supabase/actions";
+
+function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className={authPrimaryButtonClass} disabled={pending}>
+      {pending ? pendingLabel : idleLabel}
+    </Button>
+  );
+}
 
 export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [repeatPassword, setRepeatPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
-
-    if (password !== repeatPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/admin`,
-        },
-      });
-      if (error) throw error;
-      router.push("/auth/sign-up-success");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [formState, formAction] = useFormState<SignUpActionState, FormData>(signUpAction, {
+    error: null,
+  });
 
   return (
     <div className={cn("flex flex-1 flex-col", className)} {...props}>
@@ -68,7 +44,7 @@ export function SignUpForm({
           description="Create your store account to get started"
         />
         <AuthCardContent>
-          <form onSubmit={handleSignUp} className="flex flex-col gap-6">
+          <form action={formAction} className="flex flex-col gap-6">
             <div className="grid gap-2">
               <Label htmlFor="email" className={authLabelClass}>
                 Email address
@@ -79,11 +55,10 @@ export function SignUpForm({
                 </div>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="admin@utang.ph"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   className={authInputClass}
                 />
               </div>
@@ -98,10 +73,9 @@ export function SignUpForm({
                 </div>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={authInputClass}
                 />
               </div>
@@ -116,25 +90,18 @@ export function SignUpForm({
                 </div>
                 <Input
                   id="repeat-password"
+                  name="repeatPassword"
                   type="password"
                   required
                   placeholder="............"
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
                   className={authInputClass}
                 />
               </div>
             </div>
-            {error && (
-              <p className="text-xs font-medium text-destructive">{error}</p>
+            {formState.error && (
+              <p className="text-xs font-medium text-destructive">{formState.error}</p>
             )}
-            <Button
-              type="submit"
-              className={authPrimaryButtonClass}
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating account..." : "Register"}
-            </Button>
+            <SubmitButton idleLabel="Register" pendingLabel="Creating account..." />
             <p className="text-center text-xs text-muted-foreground">
               Already have an account?{" "}
               <Link href="/auth/login" className={authLinkClass}>

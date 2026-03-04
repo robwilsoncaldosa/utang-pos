@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   AuthCard,
@@ -16,39 +15,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Lock, Mail } from "lucide-react";
+import { loginAction, type LoginActionState } from "@/lib/supabase/actions";
+
+function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className={authPrimaryButtonClass} disabled={pending}>
+      {pending ? pendingLabel : idleLabel}
+    </Button>
+  );
+}
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      router.push("/admin");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [formState, formAction] = useFormState<LoginActionState, FormData>(loginAction, {
+    error: null,
+  });
 
   return (
     <div className={cn("flex flex-1 flex-col", className)} {...props}>
@@ -58,7 +44,7 @@ export function LoginForm({
           description="Digitalize your store credit with UTang"
         />
         <AuthCardContent>
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
+          <form action={formAction} className="flex flex-col gap-6">
             <div className="grid gap-2">
               <Label htmlFor="email" className={authLabelClass}>
                 Email address
@@ -69,11 +55,10 @@ export function LoginForm({
                 </div>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="admin@utang.ph"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   className={authInputClass}
                 />
               </div>
@@ -96,24 +81,17 @@ export function LoginForm({
                 </div>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={authInputClass}
                 />
               </div>
             </div>
-            {error && (
-              <p className="text-xs font-medium text-destructive">{error}</p>
+            {formState.error && (
+              <p className="text-xs font-medium text-destructive">{formState.error}</p>
             )}
-            <Button
-              type="submit"
-              className={authPrimaryButtonClass}
-              disabled={isLoading}
-            >
-              {isLoading ? "Signing in..." : "Sign In"}
-            </Button>
+            <SubmitButton idleLabel="Sign In" pendingLabel="Signing in..." />
             <p className="text-center text-xs text-muted-foreground">
               New manager?{" "}
               <Link href="/auth/sign-up" className={authLinkClass}>

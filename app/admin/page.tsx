@@ -1,12 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { fetchUser } from "@/lib/supabase/queries";
 import { LogoutButton } from "@/components/logout-button";
 import Link from "next/link";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: user } = await fetchUser();
 
   return (
     <div className="flex min-h-svh flex-col">

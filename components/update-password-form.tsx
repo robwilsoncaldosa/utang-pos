@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   AuthCard,
@@ -14,35 +13,29 @@ import {
 } from "@/components/auth-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Lock } from "lucide-react";
+import { updatePasswordAction, type UpdatePasswordActionState } from "@/lib/supabase/actions";
+
+function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className={authPrimaryButtonClass} disabled={pending}>
+      {pending ? pendingLabel : idleLabel}
+    </Button>
+  );
+}
 
 export function UpdatePasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      router.push("/admin");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+  const [formState, formAction] = useFormState<UpdatePasswordActionState, FormData>(
+    updatePasswordAction,
+    {
+      error: null,
     }
-  };
+  );
 
   return (
     <div className={cn("flex flex-1 flex-col", className)} {...props}>
@@ -52,10 +45,7 @@ export function UpdatePasswordForm({
           description="Enter your new password below"
         />
         <AuthCardContent>
-          <form
-            onSubmit={handleUpdatePassword}
-            className="flex flex-col gap-6"
-          >
+          <form action={formAction} className="flex flex-col gap-6">
             <div className="grid gap-2">
               <Label htmlFor="password" className={authLabelClass}>
                 New password
@@ -66,25 +56,18 @@ export function UpdatePasswordForm({
                 </div>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="............"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={authInputClass}
                 />
               </div>
             </div>
-            {error && (
-              <p className="text-xs font-medium text-destructive">{error}</p>
+            {formState.error && (
+              <p className="text-xs font-medium text-destructive">{formState.error}</p>
             )}
-            <Button
-              type="submit"
-              className={authPrimaryButtonClass}
-              disabled={isLoading}
-            >
-              {isLoading ? "Saving..." : "Save new password"}
-            </Button>
+            <SubmitButton idleLabel="Save new password" pendingLabel="Saving..." />
           </form>
         </AuthCardContent>
       </AuthCard>
