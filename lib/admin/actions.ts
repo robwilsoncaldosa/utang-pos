@@ -142,11 +142,13 @@ export async function updateProductAction(
   if (context.error) return { error: context.error };
   const { supabase, userId } = context.data!;
   const payload = {
-    name: sanitizeOptional(input.name ?? null),
-    price: input.price ?? null,
-    stock_quantity: input.stock_quantity ?? null,
+    name: input.name === undefined ? undefined : sanitizeInput(String(input.name)),
+    price: input.price === undefined ? undefined : Number(input.price),
+    stock_quantity:
+      input.stock_quantity === undefined ? undefined : Number(input.stock_quantity),
     category_id: input.category_id ?? null,
-    image_url: sanitizeOptional(input.image_url ?? null),
+    image_url:
+      input.image_url === undefined ? undefined : sanitizeOptional(input.image_url),
   };
   const { data, error } = await supabase
     .from("products")
@@ -205,10 +207,12 @@ export async function updateOrderAction(
   if (context.error) return { error: context.error };
   const { supabase, userId } = context.data!;
   const payload = {
-    customer_id: sanitizeOptional(input.customer_id ?? null),
-    payment_method: input.payment_method ?? null,
+    customer_id:
+      input.customer_id === undefined ? undefined : sanitizeOptional(input.customer_id),
+    payment_method: input.payment_method ?? undefined,
     status: input.status ?? null,
-    total_amount: input.total_amount ?? null,
+    total_amount:
+      input.total_amount === undefined ? undefined : Number(input.total_amount),
   };
   const { data, error } = await supabase
     .from("orders")
@@ -273,10 +277,13 @@ export async function updateOrderItemAction(
   if (context.error) return { error: context.error };
   const { supabase, userId } = context.data!;
   const payload = {
-    order_id: sanitizeOptional(input.order_id ?? null),
-    product_id: sanitizeOptional(input.product_id ?? null),
-    quantity: input.quantity ?? null,
-    unit_price: input.unit_price ?? null,
+    order_id:
+      input.order_id === undefined ? undefined : sanitizeOptional(input.order_id),
+    product_id:
+      input.product_id === undefined ? undefined : sanitizeOptional(input.product_id),
+    quantity: input.quantity === undefined ? undefined : Number(input.quantity),
+    unit_price:
+      input.unit_price === undefined ? undefined : Number(input.unit_price),
   };
   const { data, error } = await supabase
     .from("order_items")
@@ -338,7 +345,7 @@ export async function updateUserRoleAction(
   if (context.error) return { error: context.error };
   const { supabase, userId: actorId } = context.data!;
   const payload = {
-    role: sanitizeOptional(input.role ?? null),
+    role: input.role === undefined ? undefined : sanitizeInput(String(input.role)),
   };
   const { data, error } = await supabase
     .from("user_roles")

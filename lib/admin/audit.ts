@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/database.types";
 
 type AuditLogInput = {
   userId: string | null;
   tableName: string;
   action: string;
   recordId?: string | null;
-  payload?: Record<string, unknown> | null;
+  payload?: Json | null;
 };
 
 export async function logAudit(input: AuditLogInput) {

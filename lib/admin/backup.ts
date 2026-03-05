@@ -6,13 +6,14 @@ import { can } from "@/lib/admin/permissions";
 import { verifyCsrfToken } from "@/lib/admin/csrf";
 import { checkRateLimit } from "@/lib/admin/rate-limit";
 import { logAudit } from "@/lib/admin/audit";
+import type { TablesInsert } from "@/database.types";
 
 type BackupPayload = {
-  categories: unknown[];
-  products: unknown[];
-  orders: unknown[];
-  order_items: unknown[];
-  user_roles: unknown[];
+  categories: TablesInsert<"categories">[];
+  products: TablesInsert<"products">[];
+  orders: TablesInsert<"orders">[];
+  order_items: TablesInsert<"order_items">[];
+  user_roles: TablesInsert<"user_roles">[];
   created_at: string;
 };
 
