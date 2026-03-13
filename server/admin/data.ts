@@ -5,6 +5,7 @@ import {
   type AdminFieldConfig,
   type AdminTableName,
 } from "@/lib/admin/entity-config";
+import { validateCategoryName } from "@/lib/admin/category-naming";
 import { createClient } from "@/lib/supabase/server";
 
 export type DashboardMetrics = {
@@ -13,6 +14,12 @@ export type DashboardMetrics = {
   pendingOrders: number;
   lowStockProducts: number;
   totalRevenue: number;
+};
+
+export type TableOption = {
+  label: string;
+  value: string;
+  imageUrl?: string;
 };
 
 function parseJsonValue(raw: string): Json | null {
@@ -50,6 +57,14 @@ function getPayloadFromFormData(table: AdminTableName, formData: FormData) {
   for (const field of config.fields) {
     const rawValue = String(formData.get(field.name) ?? "");
     payload[field.name] = parseFieldValue(field, rawValue);
+  }
+
+  if (table === "categories") {
+    const nameResult = validateCategoryName(String(payload.name ?? ""));
+    if (nameResult.error) {
+      throw new Error(nameResult.error);
+    }
+    payload.name = nameResult.value;
   }
 
   return payload;
@@ -94,10 +109,6 @@ export async function getTableRows(table: AdminTableName, limit = 50) {
     const result = await supabase.from("user_roles").select("*").limit(limit).order(keyField, { ascending: false });
     data = result.data as unknown as Record<string, unknown>[] | null;
     error = result.error;
-  } else if (table === "audit_logs") {
-    const result = await supabase.from("audit_logs").select("*").limit(limit).order(keyField, { ascending: false });
-    data = result.data as unknown as Record<string, unknown>[] | null;
-    error = result.error;
   }
 
   if (error) {
@@ -108,14 +119,21 @@ export async function getTableRows(table: AdminTableName, limit = 50) {
 
 export async function getTableOptions(table: AdminTableName, labelField: string, valueField: string) {
   const { supabase } = await assertAuthenticated();
-  const result = await supabase.from(table).select(`${labelField}, ${valueField}`);
+  const selectColumns = table === "products"
+    ? `${labelField}, ${valueField}, image_url`
+    : `${labelField}, ${valueField}`;
+  const result = await supabase
+    .from(table)
+    .select(selectColumns)
+    .order(labelField, { ascending: true, nullsFirst: false });
   if (result.error) {
     console.error(result.error);
     return [];
   }
-  return (result.data as any[]).map((row) => ({
-    label: String(row[labelField]),
-    value: String(row[valueField]),
+  return ((result.data ?? []) as unknown as Record<string, unknown>[]).map((row): TableOption => ({
+    label: String(row[labelField] ?? "Unknown"),
+    value: String(row[valueField] ?? ""),
+    imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
   }));
 }
 
@@ -138,9 +156,6 @@ export async function createTableRow(table: AdminTableName, formData: FormData) 
     error = result.error;
   } else if (table === "user_roles") {
     const result = await supabase.from("user_roles").insert(payload as TablesInsert<"user_roles">);
-    error = result.error;
-  } else if (table === "audit_logs") {
-    const result = await supabase.from("audit_logs").insert(payload as TablesInsert<"audit_logs">);
     error = result.error;
   }
 
@@ -189,12 +204,6 @@ export async function updateTableRow(
       .update(payload as TablesUpdate<"user_roles">)
       .eq(keyField, rowId);
     error = result.error;
-  } else if (table === "audit_logs") {
-    const result = await supabase
-      .from("audit_logs")
-      .update(payload as TablesUpdate<"audit_logs">)
-      .eq(keyField, rowId);
-    error = result.error;
   }
 
   if (error) {
@@ -221,9 +230,6 @@ export async function deleteTableRow(table: AdminTableName, rowId: string) {
     error = result.error;
   } else if (table === "user_roles") {
     const result = await supabase.from("user_roles").delete().eq(keyField, rowId);
-    error = result.error;
-  } else if (table === "audit_logs") {
-    const result = await supabase.from("audit_logs").delete().eq(keyField, rowId);
     error = result.error;
   }
 

@@ -25,7 +25,11 @@ export function ProductGrid({
   categories,
   className,
 }: ProductGridProps) {
-  const { addItem } = useCartContext();
+  const { addItem, items } = useCartContext();
+  const quantityById = useMemo(
+    () => new Map(items.map((item) => [item.productId, item.quantity])),
+    [items]
+  );
 
   const categoryNameById = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -71,10 +75,19 @@ export function ProductGrid({
             key={product.id}
             product={product}
             onAddToCart={() => {
+              const quantityInCart = quantityById.get(product.id) ?? 0;
+              if (quantityInCart >= product.stock) {
+                toast.error("Cannot add more items", {
+                  description: `${product.name} reached available stock`,
+                });
+                return;
+              }
               addItem({
                 productId: product.id,
                 name: product.name,
                 price: product.price,
+                imageUrl: product.imageUrl,
+                maxStock: product.stock,
               });
               toast.success("Added to cart", {
                 description: `${product.name} · P${product.price.toFixed(2)}`,

@@ -2,7 +2,7 @@
 
 import { useCartContext } from "./cart-provider";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, HelpCircle, X } from "lucide-react";
+import { ShoppingCart, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CartSidebarProps = {
@@ -25,6 +25,9 @@ export function CartSidebar({
     items,
     clearCart,
     updateQuantity,
+    removeItem,
+    subtotal,
+    taxAmount,
     totalAmount,
   } = useCartContext();
 
@@ -100,6 +103,7 @@ export function CartSidebar({
                     onClick={() =>
                       updateQuantity(item.productId, item.quantity - 1)
                     }
+                    aria-label={`Decrease quantity of ${item.name}`}
                     className="size-7 rounded border border-border text-xs font-medium hover:bg-muted"
                   >
                     −
@@ -112,9 +116,18 @@ export function CartSidebar({
                     onClick={() =>
                       updateQuantity(item.productId, item.quantity + 1)
                     }
+                    aria-label={`Increase quantity of ${item.name}`}
                     className="size-7 rounded border border-border text-xs font-medium hover:bg-muted"
                   >
                     +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.productId)}
+                    aria-label={`Remove ${item.name}`}
+                    className="ml-1 flex size-7 items-center justify-center rounded border border-border text-destructive hover:bg-muted"
+                  >
+                    <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </li>
@@ -126,6 +139,14 @@ export function CartSidebar({
       {/* Summary & actions */}
       <div className="shrink-0 border-t border-border p-4 space-y-3">
         <div className="space-y-1 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Subtotal</span>
+            <span>P{subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-muted-foreground">
+            <span>Tax (12%)</span>
+            <span>P{taxAmount.toFixed(2)}</span>
+          </div>
           <div className="flex justify-between font-semibold text-foreground pt-1">
             <span>Total Amount</span>
             <span className="text-primary">P{totalAmount.toFixed(2)}</span>

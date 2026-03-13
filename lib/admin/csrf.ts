@@ -12,24 +12,27 @@ function generateToken() {
 
 export async function getCsrfToken() {
   const cookieStore = await cookies();
-  const existing = cookieStore.get(COOKIE_NAME)?.value;
-  if (existing) {
-    return existing;
-  }
-  const token = generateToken();
-  cookieStore.set(COOKIE_NAME, token, {
+  return cookieStore.get(COOKIE_NAME)?.value ?? null;
+}
+
+export async function createCsrfToken() {
+  return generateToken();
+}
+
+export async function getCsrfCookieOptions() {
+  return {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-  });
-  return token;
+  } as const;
 }
 
 export async function verifyCsrfToken(token: string | null) {
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get(COOKIE_NAME)?.value;
   if (!token || !cookieToken) return false;
+  if (token.length !== cookieToken.length) return false;
   return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(cookieToken));
 }
 

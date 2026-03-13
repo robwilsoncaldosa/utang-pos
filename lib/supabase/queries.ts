@@ -1,6 +1,7 @@
 "use server";
 
 import type { Tables } from "@/database.types";
+import { sanitizeCategoryName } from "@/lib/admin/category-naming";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -12,7 +13,11 @@ export async function fetchCategories(): Promise<QueryResult<Tables<"categories"
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("*").order("name");
   return {
-    data: data ?? [],
+    data:
+      data?.map((category) => ({
+        ...category,
+        name: sanitizeCategoryName(category.name),
+      })) ?? [],
     error: error?.message ?? null,
   };
 }

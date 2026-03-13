@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ADMIN_TABLE_CONFIGS, type AdminTableName } from "@/lib/admin/entity-config";
 import { getTableSchema } from "@/lib/admin/schemas";
@@ -8,6 +9,7 @@ import {
   deleteTableRow,
   getTableRows,
   getTableOptions,
+  type TableOption,
   updateTableRow,
 } from "@/server/admin/data";
 import { DynamicForm, type FormState } from "@/components/admin/dynamic-form";
@@ -42,12 +44,47 @@ function toSingularLabel(label: string) {
   return label;
 }
 
+function resolveDisplayValue(
+  rawValue: unknown,
+  options: TableOption[] | undefined,
+  staticOptions: Array<{ label: string; value: string }> | undefined
+) {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return "";
+  }
+  const value = String(rawValue);
+  if (options?.length) {
+    const match = options.find((option) => option.value === value);
+    if (match) {
+      return match.label;
+    }
+  }
+  if (staticOptions?.length) {
+    const match = staticOptions.find((option) => option.value === value);
+    if (match) {
+      return match.label;
+    }
+  }
+  if (typeof rawValue === "string" && /^\d{4}-\d{2}-\d{2}T/.test(rawValue)) {
+    const parsed = new Date(rawValue);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleString();
+    }
+  }
+  return stringifyValue(rawValue);
+}
+
 export default async function AdminEntityPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ table: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { table } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const viewParam = resolvedSearchParams.view;
+  const currentView = (Array.isArray(viewParam) ? viewParam[0] : viewParam) === "edit" ? "edit" : "create";
   if (!isAdminTableName(table)) {
     notFound();
   }
@@ -56,7 +93,7 @@ export default async function AdminEntityPage({
   const config = ADMIN_TABLE_CONFIGS[tableName];
   const rows = await getTableRows(tableName);
 
-  const relationOptions: Record<string, Array<{ label: string; value: string }>> = {};
+  const relationOptions: Record<string, TableOption[]> = {};
 
   for (const field of config.fields) {
     if (field.relation) {
@@ -68,6 +105,7 @@ export default async function AdminEntityPage({
       relationOptions[field.name] = options;
     }
   }
+  const fieldByName = Object.fromEntries(config.fields.map((field) => [field.name, field]));
 
   async function createAction(prevState: FormState, formData: FormData): Promise<FormState> {
     "use server";
@@ -138,71 +176,87 @@ export default async function AdminEntityPage({
         <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create {toSingularLabel(config.label)}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DynamicForm
-            fields={config.fields}
-            action={createAction}
-            options={relationOptions}
-            submitLabel="Create"
-            isCreate
-          />
-        </CardContent>
-      </Card>
+      <div className="w-full overflow-x-auto">
+        <div className="inline-flex min-w-full gap-2 rounded-lg border bg-muted/20 p-1 sm:min-w-0">
+          <Link
+            href={`/admin/${tableName}?view=create`}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${currentView === "create"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+          >
+            Create
+          </Link>
+          <Link
+            href={`/admin/${tableName}?view=edit`}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${currentView === "edit"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+          >
+            Edit
+          </Link>
+        </div>
+      </div>
 
-      <div className="grid gap-4">
-        {rows.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-sm text-muted-foreground">
-              No records found.
-            </CardContent>
-          </Card>
-        ) : null}
-        {rows.map((row, index) => {
-          const rowId = getRowId(row, config.keyField);
-          return (
-            <Card key={rowId || `${config.keyField}-${index}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  {config.keyField}: {rowId || "N/A"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {config.columns.map((column) => (
-                    <div key={column.key} className="rounded-md border p-3">
-                      <p className="text-xs text-muted-foreground">{column.label}</p>
-                      <p className="mt-1 line-clamp-4 text-sm whitespace-pre-wrap">
-                        {stringifyValue(row[column.key]) || "—"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                <details className="rounded-md border p-4">
-                  <summary className="cursor-pointer text-sm font-medium">
-                    Edit record
-                  </summary>
-                  <div className="mt-4">
-                    <DynamicForm
-                      fields={config.fields}
-                      action={updateAction}
-                      defaultValues={{ ...row, id: rowId }}
-                      options={relationOptions}
-                      submitLabel="Save changes"
-                    />
-                  </div>
-                </details>
-
-                <DeleteRecord action={deleteAction} rowId={rowId} />
+      {currentView === "create" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Create {toSingularLabel(config.label)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DynamicForm
+              fields={config.fields}
+              action={createAction}
+              options={relationOptions}
+              submitLabel="Create"
+              tableName={tableName}
+              uploads={config.uploads}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {rows.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-sm text-muted-foreground">
+                No records found.
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          ) : null}
+          {rows.map((row, index) => {
+            const rowId = getRowId(row, config.keyField);
+            const displayFieldConfig = fieldByName[config.displayField];
+            const displayLabel = resolveDisplayValue(
+              row[config.displayField],
+              relationOptions[config.displayField],
+              displayFieldConfig?.options
+            );
+            return (
+              <Card key={rowId || `${config.keyField}-${index}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    {displayLabel || `${toSingularLabel(config.label)} record`}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <DynamicForm
+                    fields={config.fields}
+                    action={updateAction}
+                    defaultValues={{ ...row, id: rowId }}
+                    options={relationOptions}
+                    submitLabel="Save Changes"
+                    tableName={tableName}
+                    uploads={config.uploads}
+                  />
+
+                  <DeleteRecord action={deleteAction} rowId={rowId} />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

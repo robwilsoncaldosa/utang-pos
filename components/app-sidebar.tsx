@@ -2,17 +2,15 @@
 
 import * as React from "react"
 import {
-  ClipboardList,
-  FolderTree,
   LayoutDashboard,
-  Logs,
+  ListOrdered,
   Package,
-  ReceiptText,
-  ShieldCheck,
-  ShoppingCart,
+  PackageSearch,
+  ShoppingBasket,
+  Tags,
+  UserCog,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -39,7 +37,6 @@ const tablePath: Record<AdminTableName, string> = {
   orders: "/admin/orders",
   order_items: "/admin/order_items",
   user_roles: "/admin/user_roles",
-  audit_logs: "/admin/audit_logs",
 }
 
 export function AppSidebar({
@@ -50,43 +47,36 @@ export function AppSidebar({
   user: SidebarUser
   role: string
 }) {
-  const pathname = usePathname()
   const navMain = [
     {
       title: "Overview",
       url: "/admin",
       icon: LayoutDashboard,
-      isActive: pathname === "/admin",
     },
     {
-      title: "Catalog",
+      title: "Categories",
       url: tablePath.categories,
-      icon: FolderTree,
-      isActive: pathname.startsWith("/admin/categories") || pathname.startsWith("/admin/products"),
-      items: [
-        { title: "Categories", url: tablePath.categories },
-        { title: "Products", url: tablePath.products },
-      ],
+      icon: Tags,
     },
     {
-      title: "Sales",
+      title: "Products",
+      url: tablePath.products,
+      icon: PackageSearch,
+    },
+    {
+      title: "Orders",
       url: tablePath.orders,
-      icon: ShoppingCart,
-      isActive: pathname.startsWith("/admin/orders") || pathname.startsWith("/admin/order_items"),
-      items: [
-        { title: "Orders", url: tablePath.orders },
-        { title: "Order Items", url: tablePath.order_items },
-      ],
+      icon: ShoppingBasket,
     },
     {
-      title: "Access",
+      title: "Order Items",
+      url: tablePath.order_items,
+      icon: ListOrdered,
+    },
+    {
+      title: "User Roles",
       url: tablePath.user_roles,
-      icon: ShieldCheck,
-      isActive: pathname.startsWith("/admin/user_roles") || pathname.startsWith("/admin/audit_logs"),
-      items: [
-        { title: "User Roles", url: tablePath.user_roles },
-        { title: "Audit Logs", url: tablePath.audit_logs },
-      ],
+      icon: UserCog,
     },
   ]
 
@@ -115,34 +105,18 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <SidebarMenu className="px-2">
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Orders">
-              <Link href={tablePath.orders}>
-                <ReceiptText />
-                <span>Order Queue</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Audit">
-              <Link href={tablePath.audit_logs}>
-                <Logs />
-                <span>Audit Trail</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Roles">
+            <SidebarMenuButton asChild tooltip="Current role">
               <Link href={tablePath.user_roles}>
-                <ClipboardList />
+                <UserCog />
                 <span>{role}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter>
         <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>

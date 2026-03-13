@@ -77,14 +77,9 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 
   ```env
   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
   ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
-
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
 
 5. You can now run the Next.js local development server:
 
@@ -97,6 +92,41 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+
+## File Upload with Supabase Storage
+
+The upload system only requires:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+Create a public Supabase Storage bucket named `project-uploads`, then allow `image/jpeg`, `image/png`, `image/webp`, and `image/gif`.
+
+Limits are optimized for Supabase free tier:
+
+- Max file size: `5MB`
+- Max files per request: `5`
+- Upload path format: `products/YYYY-MM-DD/<uuid>-<filename>`
+
+API endpoints:
+
+- `GET /api/upload` returns bucket health and reports bucket configuration errors
+- `GET /api/upload?path=<storage-path>&width=640&quality=70` returns a public URL with optional image transform
+- `POST /api/upload` expects `multipart/form-data` with `files` and optional `productId`
+
+When `productId` is included, the endpoint updates `products.image_url` with the first uploaded file URL.
+
+Testing flow:
+
+1. Call `GET /api/upload` and confirm `ok: true`
+2. Upload one image with `POST /api/upload`
+3. Verify returned `publicUrl` loads in the browser
+4. Upload with `productId` and verify `products.image_url` is updated
+5. Open POS and confirm product image renders from Supabase URL
+
+The project includes a reusable UI component at `components/upload/supabase-upload-dropzone.tsx` for drag-and-drop uploads with progress, and a server upload service at `lib/upload/upload-service.ts` for validation and Storage uploads.
 
 ## Feedback and issues
 

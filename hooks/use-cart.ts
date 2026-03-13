@@ -1,47 +1,69 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  addItemToCart,
+  getCartSummary,
+  removeCartItem,
+  updateCartItemQuantity,
+  type AddCartItemInput,
+  type CartItem,
+} from "@/lib/pos/cart-utils";
 
-export type CartItem = {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-};
+const CART_STORAGE_KEY = "utang-pos-cart";
 
 export function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  const addItem = useCallback((item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
-    setItems((prev) => {
-      const existing = prev.find((i) => i.productId === item.productId);
-      const qty = item.quantity ?? 1;
-      if (existing) {
-        return prev.map((i) =>
-          i.productId === item.productId ? { ...i, quantity: i.quantity + qty } : i
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+      if (!raw) {
+        setIsHydrated(true);
+        return;
+      }
+      const parsed = JSON.parse(raw) as CartItem[];
+      if (Array.isArray(parsed)) {
+        setItems(
+          parsed.filter(
+            (item) =>
+              typeof item.productId === "string" &&
+              typeof item.name === "string" &&
+              typeof item.price === "number" &&
+              typeof item.quantity === "number"
+          )
         );
       }
-      return [...prev, { ...item, quantity: qty }];
-    });
+      setIsHydrated(true);
+    } catch {
+      setIsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  }, [items, isHydrated]);
+
+  const addItem = useCallback((item: AddCartItemInput) => {
+    setItems((prev) => addItemToCart(prev, item));
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
-    if (quantity < 1) {
-      setItems((prev) => prev.filter((i) => i.productId !== productId));
-      return;
-    }
-    setItems((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, quantity } : i))
-    );
+    setItems((prev) => updateCartItemQuantity(prev, productId, quantity));
   }, []);
 
   const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+    setItems((prev) => removeCartItem(prev, productId));
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
 
-  const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const { subtotal, taxAmount, totalAmount, itemCount } = useMemo(
+    () => getCartSummary(items),
+    [items]
+  );
 
   return {
     items,
@@ -49,7 +71,10 @@ export function useCart() {
     updateQuantity,
     removeItem,
     clearCart,
+    subtotal,
+    taxAmount,
     totalAmount,
-    itemCount: items.reduce((n, i) => n + i.quantity, 0),
+    itemCount,
+    isHydrated,
   };
 }

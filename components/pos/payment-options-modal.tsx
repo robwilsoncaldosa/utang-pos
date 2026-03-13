@@ -18,6 +18,7 @@ type PaymentOptionsModalProps = {
   onSelectCredit: () => void;
   onSelectCash: () => void;
   onSelectEwallet: () => void;
+  isSubmitting?: boolean;
 };
 
 export function PaymentOptionsModal({
@@ -27,6 +28,7 @@ export function PaymentOptionsModal({
   onSelectCredit,
   onSelectCash,
   onSelectEwallet,
+  isSubmitting = false,
 }: PaymentOptionsModalProps) {
   const { totalAmount } = useCartContext();
 
@@ -49,6 +51,7 @@ export function PaymentOptionsModal({
           <Button
             type="button"
             className="h-14 justify-start gap-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled={isSubmitting}
             onClick={() => {
               onClose();
               onSelectCredit();
@@ -63,6 +66,7 @@ export function PaymentOptionsModal({
           <Button
             type="button"
             className="h-14 justify-start gap-4 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+            disabled={isSubmitting}
             onClick={() => {
               onClose();
               onSelectCash();
@@ -74,6 +78,7 @@ export function PaymentOptionsModal({
           <Button
             type="button"
             className="h-14 justify-start gap-4 rounded-xl bg-[hsl(30,80%,50%)] text-white hover:bg-[hsl(30,80%,45%)]"
+            disabled={isSubmitting}
             onClick={() => {
               onClose();
               onSelectEwallet();
@@ -86,6 +91,7 @@ export function PaymentOptionsModal({
 
         <button
           type="button"
+          disabled={isSubmitting}
           onClick={() => {
             onClose();
             onBackToReview();

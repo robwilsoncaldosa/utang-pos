@@ -59,6 +59,9 @@ export function PosHeader({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        <div className="hidden md:inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+          Cart: <span className="ml-1 text-foreground">{cartItemCount}</span>
+        </div>
         <ThemeSwitcher />
         {onCartClick != null && (
         <button

@@ -6,17 +6,33 @@ import { cn } from "@/lib/utils";
 
 type DropzoneProps = {
   onFilesAccepted: (files: File[]) => void;
+  onFilesRejected?: (rejections: FileRejection[]) => void;
   accept?: Record<string, string[]>;
   maxSize?: number;
+  maxFiles?: number;
+  title?: string;
+  description?: string;
   className?: string;
 };
 
-export function Dropzone({ onFilesAccepted, accept, maxSize, className }: DropzoneProps) {
+export function Dropzone({
+  onFilesAccepted,
+  onFilesRejected,
+  accept,
+  maxSize,
+  maxFiles,
+  title = "Drag and drop files here",
+  description = "or click to browse files",
+  className,
+}: DropzoneProps) {
+  const allowMultiple = typeof maxFiles === "number" ? maxFiles > 1 : true;
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     accept,
     maxSize,
-    multiple: true,
+    maxFiles,
+    multiple: allowMultiple,
     onDropAccepted: onFilesAccepted,
+    onDropRejected: onFilesRejected,
   });
 
   const rejectionMessages = fileRejections.map((rejection: FileRejection) =>
@@ -34,8 +50,8 @@ export function Dropzone({ onFilesAccepted, accept, maxSize, className }: Dropzo
       >
         <input {...getInputProps()} />
         <UploadCloud className="size-6 text-muted-foreground" />
-        <p className="text-sm font-medium text-foreground">Drag and drop images here</p>
-        <p className="text-xs text-muted-foreground">or click to browse files</p>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {rejectionMessages.length > 0 && (
         <div className="mt-2 text-xs text-destructive">

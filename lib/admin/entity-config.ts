@@ -1,8 +1,18 @@
 import type { Database } from "@/database.types";
 
-export type AdminTableName = keyof Database["public"]["Tables"];
+export type AdminTableName = Exclude<keyof Database["public"]["Tables"], "audit_logs">;
 
 export type AdminFieldType = "text" | "number" | "select" | "json";
+
+export type AdminUploadConfig = {
+  label: string;
+  targetField: string;
+  bucket: string;
+  pathPrefix: string;
+  allowedTypes: string[];
+  maxSize: number;
+  maxFiles: number;
+};
 
 export type AdminFieldConfig = {
   name: string;
@@ -22,8 +32,10 @@ export type AdminTableConfig = {
   label: string;
   description: string;
   keyField: string;
+  displayField: string;
   columns: Array<{ key: string; label: string }>;
   fields: AdminFieldConfig[];
+  uploads?: AdminUploadConfig[];
 };
 
 export const ADMIN_TABLE_ORDER: AdminTableName[] = [
@@ -32,7 +44,6 @@ export const ADMIN_TABLE_ORDER: AdminTableName[] = [
   "orders",
   "order_items",
   "user_roles",
-  "audit_logs",
 ];
 
 export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
@@ -41,8 +52,8 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
     label: "Categories",
     description: "Manage product categories used in POS cataloging.",
     keyField: "id",
+    displayField: "name",
     columns: [
-      { key: "id", label: "ID" },
       { key: "name", label: "Name" },
       { key: "created_at", label: "Created" },
     ],
@@ -53,13 +64,12 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
     label: "Products",
     description: "Manage stock, pricing, and category assignments.",
     keyField: "id",
+    displayField: "name",
     columns: [
-      { key: "id", label: "ID" },
       { key: "name", label: "Name" },
       { key: "price", label: "Price" },
       { key: "stock_quantity", label: "Stock" },
-      { key: "category_id", label: "Category ID" },
-      { key: "image_url", label: "Image URL" },
+      { key: "category_id", label: "Category" },
       { key: "created_at", label: "Created" },
     ],
     fields: [
@@ -68,7 +78,7 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
       { name: "stock_quantity", label: "Stock quantity", type: "number" },
       {
         name: "category_id",
-        label: "Category ID",
+        label: "Category",
         type: "select",
         nullable: true,
         relation: {
@@ -79,22 +89,33 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
       },
       { name: "image_url", label: "Image URL", type: "text", nullable: true },
     ],
+    uploads: [
+      {
+        label: "Product Image",
+        targetField: "image_url",
+        bucket: "project-uploads",
+        pathPrefix: "products",
+        allowedTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+        maxSize: 7 * 1024 * 1024,
+        maxFiles: 1,
+      },
+    ],
   },
   orders: {
     table: "orders",
     label: "Orders",
     description: "Track payment methods, statuses, and order totals.",
     keyField: "id",
+    displayField: "payment_method",
     columns: [
-      { key: "id", label: "ID" },
-      { key: "customer_id", label: "Customer ID" },
       { key: "payment_method", label: "Payment" },
       { key: "status", label: "Status" },
       { key: "total_amount", label: "Total" },
+      { key: "customer_id", label: "Customer" },
       { key: "created_at", label: "Created" },
     ],
     fields: [
-      { name: "customer_id", label: "Customer ID", type: "text", nullable: true },
+      { name: "customer_id", label: "Customer", type: "text", nullable: true },
       {
         name: "payment_method",
         label: "Payment method",
@@ -124,10 +145,10 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
     label: "Order Items",
     description: "Manage order line items and unit pricing.",
     keyField: "id",
+    displayField: "product_id",
     columns: [
-      { key: "id", label: "ID" },
-      { key: "order_id", label: "Order ID" },
-      { key: "product_id", label: "Product ID" },
+      { key: "order_id", label: "Order" },
+      { key: "product_id", label: "Product" },
       { key: "quantity", label: "Quantity" },
       { key: "unit_price", label: "Unit price" },
       { key: "created_at", label: "Created" },
@@ -135,18 +156,18 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
     fields: [
       {
         name: "order_id",
-        label: "Order ID",
+        label: "Order",
         type: "select",
         nullable: true,
         relation: {
           table: "orders",
-          labelField: "id",
+          labelField: "payment_method",
           valueField: "id",
         },
       },
       {
         name: "product_id",
-        label: "Product ID",
+        label: "Product",
         type: "select",
         nullable: true,
         relation: {
@@ -164,8 +185,8 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
     label: "User Roles",
     description: "Manage admin access levels for authenticated users.",
     keyField: "user_id",
+    displayField: "role",
     columns: [
-      { key: "user_id", label: "User ID" },
       { key: "role", label: "Role" },
     ],
     fields: [
@@ -180,28 +201,6 @@ export const ADMIN_TABLE_CONFIGS: Record<AdminTableName, AdminTableConfig> = {
           { label: "Editor", value: "editor" },
         ],
       },
-    ],
-  },
-  audit_logs: {
-    table: "audit_logs",
-    label: "Audit Logs",
-    description: "Inspect and manage activity trails for admin changes.",
-    keyField: "id",
-    columns: [
-      { key: "id", label: "ID" },
-      { key: "action", label: "Action" },
-      { key: "table_name", label: "Table" },
-      { key: "record_id", label: "Record ID" },
-      { key: "user_id", label: "User ID" },
-      { key: "payload", label: "Payload" },
-      { key: "created_at", label: "Created" },
-    ],
-    fields: [
-      { name: "action", label: "Action", type: "text" },
-      { name: "table_name", label: "Table name", type: "text" },
-      { name: "record_id", label: "Record ID", type: "text", nullable: true },
-      { name: "user_id", label: "User ID", type: "text", nullable: true },
-      { name: "payload", label: "Payload JSON", type: "json", nullable: true },
     ],
   },
 };

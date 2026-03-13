@@ -16,6 +16,7 @@ type EwalletModalProps = {
   onClose: () => void;
   onBackToPayment: () => void;
   onConfirmPayment?: () => void;
+  isSubmitting?: boolean;
 };
 
 const EWALLETS = [
@@ -44,6 +45,7 @@ export function EwalletModal({
   onClose,
   onBackToPayment,
   onConfirmPayment,
+  isSubmitting = false,
 }: EwalletModalProps) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -95,16 +97,18 @@ export function EwalletModal({
           {onConfirmPayment && (
             <Button
               className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700"
+              disabled={isSubmitting}
               onClick={() => {
                 onClose();
                 onConfirmPayment();
               }}
             >
-              I&apos;ve paid via e-wallet
+              {isSubmitting ? "Processing payment..." : "I&apos;ve paid via e-wallet"}
             </Button>
           )}
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={() => {
               onClose();
               onBackToPayment();

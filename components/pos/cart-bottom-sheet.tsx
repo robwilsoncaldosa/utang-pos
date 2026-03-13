@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useCartContext } from "./cart-provider";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import { ShoppingCart, X } from "lucide-react";
+import { ShoppingCart, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CartBottomSheetProps = {
@@ -24,6 +24,9 @@ export function CartBottomSheet({
     items,
     clearCart,
     updateQuantity,
+    removeItem,
+    subtotal,
+    taxAmount,
     totalAmount,
   } = useCartContext();
   const [internalExpanded, setInternalExpanded] = useState(false);
@@ -138,6 +141,7 @@ export function CartBottomSheet({
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                    aria-label={`Decrease quantity of ${item.name}`}
                     className="size-7 rounded border border-border text-xs font-medium hover:bg-muted"
                   >
                     −
@@ -148,9 +152,18 @@ export function CartBottomSheet({
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                    aria-label={`Increase quantity of ${item.name}`}
                     className="size-7 rounded border border-border text-xs font-medium hover:bg-muted"
                   >
                     +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.productId)}
+                    aria-label={`Remove ${item.name}`}
+                    className="ml-1 flex size-7 items-center justify-center rounded border border-border text-destructive hover:bg-muted"
+                  >
+                    <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </li>
@@ -158,6 +171,14 @@ export function CartBottomSheet({
           </ul>
         </div>
         <div className="shrink-0 border-t border-border p-4 space-y-2">
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Subtotal</span>
+            <span>P{subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Tax (12%)</span>
+            <span>P{taxAmount.toFixed(2)}</span>
+          </div>
           <div className="flex justify-between font-semibold">
             <span>Total Amount</span>
             <span className="text-primary">P{totalAmount.toFixed(2)}</span>

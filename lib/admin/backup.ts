@@ -5,7 +5,6 @@ import { getCurrentUserRole } from "@/lib/admin/roles";
 import { can } from "@/lib/admin/permissions";
 import { verifyCsrfToken } from "@/lib/admin/csrf";
 import { checkRateLimit } from "@/lib/admin/rate-limit";
-import { logAudit } from "@/lib/admin/audit";
 import type { TablesInsert } from "@/database.types";
 
 type BackupPayload = {
@@ -62,13 +61,6 @@ export async function createBackupAction(csrfToken: string) {
     return { error: error.message };
   }
 
-  await logAudit({
-    userId: auth.user.id,
-    tableName: "orders",
-    action: "backup",
-    payload: { filename },
-  });
-
   return { data: filename };
 }
 
@@ -117,13 +109,6 @@ export async function restoreBackupAction(backupName: string, csrfToken: string)
   if (payload.orders.length) await supabase.from("orders").insert(payload.orders);
   if (payload.order_items.length) await supabase.from("order_items").insert(payload.order_items);
   if (payload.user_roles.length) await supabase.from("user_roles").insert(payload.user_roles);
-
-  await logAudit({
-    userId: auth.user.id,
-    tableName: "orders",
-    action: "restore",
-    payload: { backupName },
-  });
 
   return { data: true };
 }

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export type ProductCardProduct = {
   id: string;
@@ -29,12 +30,14 @@ export function ProductCard({ product, onAddToCart, className }: ProductCardProp
         className
       )}
     >
-      <div className="relative aspect-square bg-muted/50">
+      <div className="relative aspect-square">
         {product.imageUrl ? (
-          <img
+          <Image
             src={product.imageUrl}
             alt={product.name}
-            className="h-full w-full object-contain p-2"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-contain p-2"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center p-4">

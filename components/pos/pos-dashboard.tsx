@@ -16,6 +16,9 @@ import type { Tables } from "@/database.types";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
+import { submitOrderAction } from "@/lib/pos/checkout-actions";
 
 type CategoryRow = Tables<"categories">;
 type ProductRow = Tables<"products">;
@@ -25,6 +28,7 @@ type PosDashboardInnerProps = {
   products: ProductRow[];
   categoriesError?: string | null;
   productsError?: string | null;
+  currentUserId?: string | null;
 };
 
 function PosDashboardInner({
@@ -32,6 +36,7 @@ function PosDashboardInner({
   products,
   categoriesError,
   productsError,
+  currentUserId,
 }: PosDashboardInnerProps) {
   const [categoryId, setCategoryId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,8 +48,12 @@ function PosDashboardInner({
     "Credit" | "Cash" | "E-wallets"
   >("Cash");
   const [mobileCartExpanded, setMobileCartExpanded] = useState(false);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [completedOrderNumber, setCompletedOrderNumber] = useState<string>("00001");
+  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
 
-  const { itemCount, clearCart } = useCartContext();
+  const { itemCount, items, totalAmount, clearCart } = useCartContext();
   const router = useRouter();
 
   const categoryOptions = useMemo(
@@ -69,17 +78,45 @@ function PosDashboardInner({
     setOrderSummaryOpen(true);
   }, []);
 
+  const completeTransaction = useCallback(
+    async (paymentMethod: "credit" | "cash" | "e-wallet", displayMethod: "Credit" | "Cash" | "E-wallets") => {
+      setIsPaymentSubmitting(true);
+      const result = await submitOrderAction({
+        paymentMethod,
+        totalAmount,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.price,
+        })),
+      });
+      setIsPaymentSubmitting(false);
+      if (result.error) {
+        toast.error("Unable to complete payment", {
+          description: result.error,
+        });
+        setPaymentOpen(true);
+        return;
+      }
+      setPaymentOpen(false);
+      setCompletedPaymentMethod(displayMethod);
+      if (result.data?.orderId) {
+        setCompletedOrderId(result.data.orderId);
+        setCompletedOrderNumber(result.data.orderId.slice(0, 8).toUpperCase());
+      }
+      setCompletedOpen(true);
+      router.refresh();
+    },
+    [items, router, totalAmount]
+  );
+
   const handleSelectCredit = useCallback(() => {
-    setPaymentOpen(false);
-    setCompletedPaymentMethod("Credit");
-    setCompletedOpen(true);
-  }, []);
+    void completeTransaction("credit", "Credit");
+  }, [completeTransaction]);
 
   const handleSelectCash = useCallback(() => {
-    setPaymentOpen(false);
-    setCompletedPaymentMethod("Cash");
-    setCompletedOpen(true);
-  }, []);
+    void completeTransaction("cash", "Cash");
+  }, [completeTransaction]);
 
   const handleSelectEwallet = useCallback(() => {
     setPaymentOpen(false);
@@ -93,9 +130,34 @@ function PosDashboardInner({
 
   const handleConfirmEwallet = useCallback(() => {
     setEwalletOpen(false);
-    setCompletedPaymentMethod("E-wallets");
-    setCompletedOpen(true);
-  }, []);
+    void completeTransaction("e-wallet", "E-wallets");
+  }, [completeTransaction]);
+
+  const handleContinueWithGoogle = useCallback(async () => {
+    try {
+      setIsGoogleLoading(true);
+      const supabase = createClient();
+      const callbackNext = completedOrderId
+        ? `/?linkedOrder=${encodeURIComponent(completedOrderId)}`
+        : "/";
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackNext)}&order=${encodeURIComponent(completedOrderId ?? "")}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) {
+        toast.error("Google sign-in failed", {
+          description: error.message,
+        });
+        setIsGoogleLoading(false);
+      }
+    } catch (error) {
+      toast.error("Google sign-in failed", {
+        description: "Please try again.",
+      });
+      setIsGoogleLoading(false);
+    }
+  }, [completedOrderId]);
 
   const handleNewTransaction = useCallback(() => {
     setCompletedOpen(false);
@@ -213,18 +275,24 @@ function PosDashboardInner({
         onSelectCredit={handleSelectCredit}
         onSelectCash={handleSelectCash}
         onSelectEwallet={handleSelectEwallet}
+        isSubmitting={isPaymentSubmitting}
       />
       <EwalletModal
         open={ewalletOpen}
         onClose={() => setEwalletOpen(false)}
         onBackToPayment={handleBackToPayment}
         onConfirmPayment={handleConfirmEwallet}
+        isSubmitting={isPaymentSubmitting}
       />
       <TransactionCompletedModal
         open={completedOpen}
         onClose={() => setCompletedOpen(false)}
         onNewTransaction={handleNewTransaction}
         paymentMethod={completedPaymentMethod}
+        orderNumber={completedOrderNumber}
+        showGooglePrompt={!currentUserId}
+        isGoogleLoading={isGoogleLoading}
+        onContinueWithGoogle={handleContinueWithGoogle}
       />
     </div>
   );
@@ -235,6 +303,7 @@ type PosDashboardProps = {
   products: ProductRow[];
   categoriesError?: string | null;
   productsError?: string | null;
+  currentUserId?: string | null;
 };
 
 export function PosDashboard({
@@ -242,6 +311,7 @@ export function PosDashboard({
   products,
   categoriesError,
   productsError,
+  currentUserId,
 }: PosDashboardProps) {
   return (
     <CartProvider>
@@ -250,6 +320,7 @@ export function PosDashboard({
         products={products}
         categoriesError={categoriesError}
         productsError={productsError}
+        currentUserId={currentUserId}
       />
     </CartProvider>
   );

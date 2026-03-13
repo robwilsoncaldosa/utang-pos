@@ -6,14 +6,13 @@ import { verifyCsrfToken } from "@/lib/admin/csrf";
 import { checkRateLimit } from "@/lib/admin/rate-limit";
 import { sanitizeInput, sanitizeOptional } from "@/lib/admin/sanitization";
 import { getUserRoleById } from "@/lib/admin/roles";
-import { logAudit } from "@/lib/admin/audit";
+import { validateCategoryName } from "@/lib/admin/category-naming";
 import type { Tables, TablesInsert, TablesUpdate } from "@/database.types";
 
 export type ActionResult<T> = { data?: T; error?: string };
 
 type Context = {
   supabase: Awaited<ReturnType<typeof createClient>>;
-  userId: string;
   role: Role;
 };
 
@@ -50,7 +49,7 @@ async function getContext(
     return { error: "Invalid CSRF token" };
   }
 
-  return { data: { supabase, userId: user.id, role } };
+  return { data: { supabase, role } };
 }
 
 export async function createCategoryAction(
@@ -59,9 +58,11 @@ export async function createCategoryAction(
 ): Promise<ActionResult<Tables<"categories">>> {
   const context = await getContext("categories", "create", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
+  const nameResult = validateCategoryName(sanitizeInput(String(input.name ?? "")));
+  if (nameResult.error) return { error: nameResult.error };
   const payload = {
-    name: sanitizeInput(String(input.name ?? "")),
+    name: nameResult.value,
   };
   const { data, error } = await supabase
     .from("categories")
@@ -69,7 +70,6 @@ export async function createCategoryAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "categories", action: "create", recordId: data.id, payload });
   return { data };
 }
 
@@ -80,10 +80,13 @@ export async function updateCategoryAction(
 ): Promise<ActionResult<Tables<"categories">>> {
   const context = await getContext("categories", "update", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
-  const payload = {
-    name: sanitizeOptional(input.name ?? null),
-  };
+  const { supabase } = context.data!;
+  const payload: TablesUpdate<"categories"> = {};
+  if (input.name !== undefined) {
+    const nameResult = validateCategoryName(sanitizeOptional(input.name ?? null));
+    if (nameResult.error) return { error: nameResult.error };
+    payload.name = nameResult.value;
+  }
   const { data, error } = await supabase
     .from("categories")
     .update(payload)
@@ -91,7 +94,6 @@ export async function updateCategoryAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "categories", action: "update", recordId: id, payload });
   return { data };
 }
 
@@ -101,11 +103,10 @@ export async function deleteCategoryAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext("categories", "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   await supabase.from("products").update({ category_id: null }).eq("category_id", id);
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "categories", action: "delete", recordId: id });
   return { data: null };
 }
 
@@ -115,7 +116,7 @@ export async function createProductAction(
 ): Promise<ActionResult<Tables<"products">>> {
   const context = await getContext("products", "create", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     name: sanitizeInput(String(input.name ?? "")),
     price: Number(input.price ?? 0),
@@ -129,7 +130,6 @@ export async function createProductAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "products", action: "create", recordId: data.id, payload });
   return { data };
 }
 
@@ -140,7 +140,7 @@ export async function updateProductAction(
 ): Promise<ActionResult<Tables<"products">>> {
   const context = await getContext("products", "update", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     name: input.name === undefined ? undefined : sanitizeInput(String(input.name)),
     price: input.price === undefined ? undefined : Number(input.price),
@@ -157,7 +157,6 @@ export async function updateProductAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "products", action: "update", recordId: id, payload });
   return { data };
 }
 
@@ -167,11 +166,10 @@ export async function deleteProductAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext("products", "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   await supabase.from("order_items").delete().eq("product_id", id);
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "products", action: "delete", recordId: id });
   return { data: null };
 }
 
@@ -181,7 +179,7 @@ export async function createOrderAction(
 ): Promise<ActionResult<Tables<"orders">>> {
   const context = await getContext("orders", "create", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     customer_id: sanitizeOptional(input.customer_id ?? null),
     payment_method: input.payment_method,
@@ -194,7 +192,6 @@ export async function createOrderAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "orders", action: "create", recordId: data.id, payload });
   return { data };
 }
 
@@ -205,7 +202,7 @@ export async function updateOrderAction(
 ): Promise<ActionResult<Tables<"orders">>> {
   const context = await getContext("orders", "update", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     customer_id:
       input.customer_id === undefined ? undefined : sanitizeOptional(input.customer_id),
@@ -221,7 +218,6 @@ export async function updateOrderAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "orders", action: "update", recordId: id, payload });
   return { data };
 }
 
@@ -231,11 +227,10 @@ export async function deleteOrderAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext("orders", "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   await supabase.from("order_items").delete().eq("order_id", id);
   const { error } = await supabase.from("orders").delete().eq("id", id);
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "orders", action: "delete", recordId: id });
   return { data: null };
 }
 
@@ -245,7 +240,7 @@ export async function createOrderItemAction(
 ): Promise<ActionResult<Tables<"order_items">>> {
   const context = await getContext("order_items", "create", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     order_id: sanitizeOptional(input.order_id ?? null),
     product_id: sanitizeOptional(input.product_id ?? null),
@@ -258,13 +253,6 @@ export async function createOrderItemAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({
-    userId,
-    tableName: "order_items",
-    action: "create",
-    recordId: data.id,
-    payload,
-  });
   return { data };
 }
 
@@ -275,7 +263,7 @@ export async function updateOrderItemAction(
 ): Promise<ActionResult<Tables<"order_items">>> {
   const context = await getContext("order_items", "update", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     order_id:
       input.order_id === undefined ? undefined : sanitizeOptional(input.order_id),
@@ -292,13 +280,6 @@ export async function updateOrderItemAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({
-    userId,
-    tableName: "order_items",
-    action: "update",
-    recordId: id,
-    payload,
-  });
   return { data };
 }
 
@@ -308,10 +289,9 @@ export async function deleteOrderItemAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext("order_items", "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const { error } = await supabase.from("order_items").delete().eq("id", id);
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "order_items", action: "delete", recordId: id });
   return { data: null };
 }
 
@@ -321,7 +301,7 @@ export async function createUserRoleAction(
 ): Promise<ActionResult<Tables<"user_roles">>> {
   const context = await getContext("user_roles", "create", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     user_id: sanitizeInput(String(input.user_id ?? "")),
     role: sanitizeInput(String(input.role ?? "")),
@@ -332,7 +312,6 @@ export async function createUserRoleAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({ userId, tableName: "user_roles", action: "create", recordId: data.user_id, payload });
   return { data };
 }
 
@@ -343,7 +322,7 @@ export async function updateUserRoleAction(
 ): Promise<ActionResult<Tables<"user_roles">>> {
   const context = await getContext("user_roles", "update", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId: actorId } = context.data!;
+  const { supabase } = context.data!;
   const payload = {
     role: input.role === undefined ? undefined : sanitizeInput(String(input.role)),
   };
@@ -354,13 +333,6 @@ export async function updateUserRoleAction(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  await logAudit({
-    userId: actorId,
-    tableName: "user_roles",
-    action: "update",
-    recordId: userId,
-    payload,
-  });
   return { data };
 }
 
@@ -370,10 +342,9 @@ export async function deleteUserRoleAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext("user_roles", "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId: actorId } = context.data!;
+  const { supabase } = context.data!;
   const { error } = await supabase.from("user_roles").delete().eq("user_id", userId);
   if (error) return { error: error.message };
-  await logAudit({ userId: actorId, tableName: "user_roles", action: "delete", recordId: userId });
   return { data: null };
 }
 
@@ -384,7 +355,7 @@ export async function bulkDeleteAction(
 ): Promise<ActionResult<null>> {
   const context = await getContext(table, "delete", csrfToken);
   if (context.error) return { error: context.error };
-  const { supabase, userId } = context.data!;
+  const { supabase } = context.data!;
   if (table === "orders") {
     await supabase.from("order_items").delete().in("order_id", ids);
   }
@@ -396,11 +367,5 @@ export async function bulkDeleteAction(
   }
   const { error } = await supabase.from(table).delete().in("id", ids);
   if (error) return { error: error.message };
-  await logAudit({
-    userId,
-    tableName: table,
-    action: "bulk-delete",
-    payload: { ids },
-  });
   return { data: null };
 }

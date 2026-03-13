@@ -8,8 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Download, Share2 } from "lucide-react";
 import { useCartContext } from "./cart-provider";
-import { cn } from "@/lib/utils";
-import { Suspense } from "react";
 
 type TransactionCompletedModalProps = {
   open: boolean;
@@ -17,6 +15,9 @@ type TransactionCompletedModalProps = {
   onNewTransaction: () => void;
   paymentMethod?: "Credit" | "Cash" | "E-wallets";
   orderNumber?: string;
+  showGooglePrompt?: boolean;
+  isGoogleLoading?: boolean;
+  onContinueWithGoogle?: () => void;
 };
 
 export function TransactionCompletedModal({
@@ -25,6 +26,9 @@ export function TransactionCompletedModal({
   onNewTransaction,
   paymentMethod = "Cash",
   orderNumber = "00001",
+  showGooglePrompt = false,
+  isGoogleLoading = false,
+  onContinueWithGoogle,
 }: TransactionCompletedModalProps) {
   const { items, totalAmount } = useCartContext();
 
@@ -109,6 +113,17 @@ export function TransactionCompletedModal({
             </Button>
           </div>
 
+          {showGooglePrompt && onContinueWithGoogle && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-xl mt-3"
+              disabled={isGoogleLoading}
+              onClick={onContinueWithGoogle}
+            >
+              {isGoogleLoading ? "Connecting to Google..." : "Save receipt with Google"}
+            </Button>
+          )}
           <Button
             className="w-full rounded-xl bg-primary text-primary-foreground mt-4"
             onClick={() => {
